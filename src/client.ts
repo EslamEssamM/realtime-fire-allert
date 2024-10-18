@@ -8,6 +8,6 @@ const SupabaseAnonKey: string = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const client: SupabaseClient = createClient(
   SupabaseProjectUrl,
   SupabaseAnonKey
-)
+);
 
-export default client
+export default client;

@@ -1,22 +1,10 @@
-import { User } from '@supabase/supabase-js';
-
-import { faker } from '@faker-js/faker';
-
-import { Thing } from './types/collections/thing';
-
-export const makeRandomThing = (
-	user: User): Omit<Thing, `id`> =>
-{
-	return {
-		owner: user.id,
-		name: faker.commerce.productName(),
-		weight: Math.round(Math.random() * 100),
-	}
-}
-
-export const sortByWeight = (
-	a: Thing,
-	b: Thing): -1|0|1 =>
-{
-	return (a.weight > b.weight) ? 1 : -1
-}
+// utils.js
+export const makeRandomScreen = () => {
+  return {
+    name: `Screen ${Math.floor(Math.random() * 100)}`,
+    direction: ["left", "right", "front", "back"][
+      Math.floor(Math.random() * 4)
+    ],
+    message: "Fire detected!",
+  };
+};
