@@ -1,0 +1,8 @@
+{
+  "routes": [
+    { "src": "/", "dest": "/all-screens" },
+    { "src": "/admin", "dest": "/admin" },
+    { "src": "/all-screens", "dest": "/all-screens" },
+    { "src": "/screen/:id", "dest": "/screen/:id" }
+  ]
+}
