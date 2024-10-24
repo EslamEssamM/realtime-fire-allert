@@ -186,40 +186,46 @@ const ScreenPage = () => {
               }`}
             >
               <div className="flex flex-col items-center space-y-8">
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.5 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.5 }}
-                  className={`flex items-center justify-center w-32 h-32 rounded-full ${
-                    screen.fire_alert ? "bg-red-200" : "bg-blue-200"
-                  }`}
-                >
-                  {getDirectionIcon(screen.direction)}
-                </motion.div>
-                <p className="text-2xl font-semibold capitalize">
-                  Direction: {screen.direction}
-                </p>
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5 }}
-                  className="text-center"
-                >
-                  <h2 className="text-3xl font-bold mb-4">Message</h2>
-                  <p
-                    className={`${screen.fire_alert ? "text-4xl" : "text-xl"}`}
-                  >
-                    {screen.message}
-                  </p>
-                </motion.div>
-                {screen.fire_alert && (
-                  <motion.div
-                    animate={{ scale: [1, 1.1, 1] }}
-                    transition={{ duration: 0.5, repeat: Infinity }}
-                    className="text-3xl font-bold text-red-600 mt-8"
-                  >
-                    FIRE ALERT ACTIVE
-                  </motion.div>
+                {screen.fire_alert ? (
+                  <>
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.5 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.5 }}
+                      className={`flex items-center justify-center w-32 h-32 rounded-full ${
+                        screen.fire_alert ? "bg-red-200" : "bg-blue-200"
+                      }`}
+                    >
+                      {getDirectionIcon(screen.direction)}
+                    </motion.div>
+                    <p className="text-2xl font-semibold capitalize">
+                      Direction: {screen.direction}
+                    </p>
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5 }}
+                      className="text-center"
+                    >
+                      <h2 className="text-3xl font-bold mb-4">Message</h2>
+                      <p
+                        className={`${
+                          screen.fire_alert ? "text-4xl" : "text-xl"
+                        }`}
+                      >
+                        {screen.message}
+                      </p>
+                    </motion.div>
+                    <motion.div
+                      animate={{ scale: [1, 1.1, 1] }}
+                      transition={{ duration: 0.5, repeat: Infinity }}
+                      className="text-3xl font-bold text-red-600 mt-8"
+                    >
+                      FIRE ALERT ACTIVE
+                    </motion.div>
+                  </>
+                ) : (
+                  <p className="text-4xl font-bold">مرحبا بكم</p>
                 )}
                 <Button
                   variant="outline"

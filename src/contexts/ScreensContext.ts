@@ -14,19 +14,6 @@ const ScreensContext = createContext<ScreensContextProps | undefined>(
   undefined
 );
 
-// Create a provider component
-
-// export const ScreensProvider = ({ children, client }: ScreensProviderProps) => {
-//   const [screens, setScreens] = useScreens(client);
-
-//   return (
-//     <ScreensContext.Provider value={{ screens , setScreens }}>
-//       {children}
-//     </ScreensContext.Provider>
-//   );
-// };
-
-// Custom hook to use the ScreensContext
 export const useScreensContext = (): ScreensContextProps => {
   const context = React.useContext(ScreensContext);
 
