@@ -37,7 +37,18 @@ export default function AdminPage() {
   const [editedScreen, setEditedScreen] = useState<Partial<Screen> | null>(
     null
   );
-
+  const toggleArduino = async () => {
+    // send a request to the Arduino to toggle the fire alert
+    //   server.on("/toggle", handleToggle);   // رابط التبديل بين تشغيل/إطفاء الريلاي والليد
+    try {
+      const response = await fetch("http://192.168.1.100:80/toggle");
+      if (!response.ok) {
+        throw new Error("Failed to toggle Arduino");
+      }
+    } catch (error) {
+      console.error("Error toggling Arduino:", error);
+    }
+  };
   const createScreen = async () => {
     const newScreen = makeRandomScreen();
     const { error } = await client.from("screens").insert([newScreen]).select();
@@ -49,16 +60,20 @@ export default function AdminPage() {
   };
 
   const activateFireAlert = async () => {
+    // check if there is already an active fire alert
+    if (screens.every((screen) => screen.fire_alert)) return;
     const { error } = await client
       .from("screens")
       .update({ fire_alert: true })
       .eq("fire_alert", false);
+    toggleArduino();
     if (error) {
       console.error("Error activating fire alert:", error);
     }
   };
 
   const deactivateFireAlert = async () => {
+    if (!screens.every((screen) => screen.fire_alert)) return;
     const { error } = await client
       .from("screens")
       .update({ fire_alert: false })
@@ -66,6 +81,7 @@ export default function AdminPage() {
     if (error) {
       console.error("Error deactivating fire alert:", error);
     }
+    toggleArduino();
   };
 
   const handleEditClick = (screen: Screen) => {

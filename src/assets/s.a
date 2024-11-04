@@ -1,0 +1,77 @@
+هذا الكود الخاص بالاردينو عدل معلومات الاتصال بالسيرفر . #include <WiFi.h>
+#include <WebServer.h>
+#include <WiFiClient.h>
+
+// إعدادات شبكة الواي فاي
+const char* ssid = "My_Home_Network";       // اسم الشبكة
+const char* password = "password1234";      // كلمة المرور
+
+// إعدادات GPIO للريلاي والليد
+const int relayPin = 23; // المنفذ الخاص بالريلاي
+const int ledPin = 22;   // المنفذ الخاص بالليد
+
+// إعدادات عنوان IP ثابت
+IPAddress local_IP(192, 168, 1, 100);      // عنوان IP ثابت
+IPAddress gateway(192, 168, 1, 1);         // عنوان البوابة الافتراضية
+IPAddress subnet(255, 255, 255, 0);        // قناع الشبكة الفرعية
+IPAddress primaryDNS(8, 8, 8, 8);          // خادم DNS الأساسي
+IPAddress secondaryDNS(8, 8, 4, 4);        // خادم DNS الثانوي
+
+// إنشاء خادم ويب على المنفذ 80
+WebServer server(80);
+
+void setup() {
+  Serial.begin(115200);                    // بدء تشغيل المنفذ التسلسلي للمراقبة
+  pinMode(relayPin, OUTPUT);               // تعيين الريلاي كمخرج
+  pinMode(ledPin, OUTPUT);                 // تعيين الليد كمخرج
+
+  // إعداد عنوان IP ثابت قبل الاتصال بالواي فاي
+  if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS)) {
+    Serial.println("Failed to configure static IP");
+  }
+
+  // الاتصال بشبكة الواي فاي
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print("."); // الانتظار حتى يتم الاتصال بالواي فاي
+  }
+  Serial.println("\nConnected to WiFi");
+
+  // عرض عنوان IP الخاص بالخادم على الشاشة التسلسلية
+  Serial.print("Server IP Address: ");
+  Serial.println(WiFi.localIP());
+
+  // إعداد مسارات الويب للتحكم بالريلاي والليد
+  server.on("/", handleRoot);           // الصفحة الرئيسية
+  server.on("/toggle", handleToggle);   // رابط التبديل بين تشغيل/إطفاء الريلاي والليد
+
+  // بدء الخادم
+  server.begin();
+  Serial.println("HTTP server started");
+}
+
+void handleRoot() {
+  // عرض حالة الريلاي والليد في الصفحة
+  String relayState = digitalRead(relayPin) == HIGH ? "ON" : "OFF";
+  String ledState = digitalRead(ledPin) == HIGH ? "ON" : "OFF";
+
+  String html = "<h1>ESP32 Relay & LED Control</h1>";
+  html += "<p>Relay State: " + relayState + "</p>";
+  html += "<p>LED State: " + ledState + "</p>";
+  html += "<button onclick=\"location.href='/toggle'\">Toggle Relay & LED</button>";
+  server.send(200, "text/html", html); // إرسال HTML للمتصفح
+}
+
+void handleToggle() {
+  // تبديل حالة الريلاي والليد
+  digitalWrite(relayPin, !digitalRead(relayPin));
+  digitalWrite(ledPin, !digitalRead(ledPin));
+
+  // تأكيد التبديل وعرض زر العودة
+  server.send(200, "text/html", "<h1>Relay & LED Toggled</h1><a href='/'>Back</a>");
+}
+
+void loop() {
+  server.handleClient(); // معالجة طلبات العملاء
+}
