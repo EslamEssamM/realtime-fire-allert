@@ -42,7 +42,7 @@ export default function AdminPage() {
     const relay = on ? "on" : "off";
     try {
       const response = await fetch(
-        `http://192.168.1.108:80/trigger?relay=${relay}`
+        `http://192.168.1.108/trigger?relay=${relay}`
       );
       if (!response.ok) {
         throw new Error("Failed to toggle Arduino");
