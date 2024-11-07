@@ -42,7 +42,15 @@ export default function AdminPage() {
     const relay = on ? "on" : "off";
     try {
       const response = await fetch(
-        `http://192.168.1.108/trigger?relay=${relay}`
+        `http://192.168.1.108/trigger?relay=${relay}`,
+        {
+          method: "GET",
+          mode: "cors", // This is the default value, but you can explicitly set it
+          credentials: "include", // Include credentials if needed
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
       );
       if (!response.ok) {
         throw new Error("Failed to toggle Arduino");
