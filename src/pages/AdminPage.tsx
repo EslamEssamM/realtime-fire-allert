@@ -37,11 +37,13 @@ export default function AdminPage() {
   const [editedScreen, setEditedScreen] = useState<Partial<Screen> | null>(
     null
   );
-  const toggleArduino = async () => {
+  const toggleArduino = async (on = true) => {
     // send a request to the Arduino to toggle the fire alert
-    //   server.on("/toggle", handleToggle);   // رابط التبديل بين تشغيل/إطفاء الريلاي والليد
+    const relay = on ? "on" : "off";
     try {
-      const response = await fetch("http://192.168.1.100:80/toggle");
+      const response = await fetch(
+        `http://192.168.1.108:80/trigger?relay=${relay}`
+      );
       if (!response.ok) {
         throw new Error("Failed to toggle Arduino");
       }
@@ -66,7 +68,7 @@ export default function AdminPage() {
       .from("screens")
       .update({ fire_alert: true })
       .eq("fire_alert", false);
-    toggleArduino();
+    toggleArduino(true);
     if (error) {
       console.error("Error activating fire alert:", error);
     }
@@ -81,7 +83,7 @@ export default function AdminPage() {
     if (error) {
       console.error("Error deactivating fire alert:", error);
     }
-    toggleArduino();
+    toggleArduino(false);
   };
 
   const handleEditClick = (screen: Screen) => {
