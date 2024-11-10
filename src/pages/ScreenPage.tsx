@@ -24,25 +24,28 @@ const ScreenPage = () => {
   const [isAutoplayBlocked, setIsAutoplayBlocked] = useState(true);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Fetch function to retrieve the latest screen data
+  const fetchScreenData = async () => {
+    setLoading(true);
+    const { data, error } = await client
+      .from("screens")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (error) {
+      console.error("Error fetching screen:", error);
+    } else {
+      setScreen(data as Screen);
+    }
+
+    setLoading(false);
+  };
+
   useEffect(() => {
-    const fetchScreen = async () => {
-      const { data, error } = await client
-        .from("screens")
-        .select("*")
-        .eq("id", id)
-        .single();
+    fetchScreenData();
 
-      if (error) {
-        console.error("Error fetching screen:", error);
-      } else {
-        setScreen(data as Screen);
-      }
-
-      setLoading(false);
-    };
-
-    fetchScreen();
-
+    // Setup the subscription to listen for updates
     const subscription = client
       .channel("public:screens")
       .on(
@@ -60,8 +63,21 @@ const ScreenPage = () => {
       )
       .subscribe();
 
+    // Polling as a fallback
+    const pollingInterval = setInterval(fetchScreenData, 10000); // Poll every 10 seconds
+
+    // Refetch data when the page becomes visible again
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        fetchScreenData();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
       subscription.unsubscribe();
+      clearInterval(pollingInterval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [id]);
 
