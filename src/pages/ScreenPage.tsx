@@ -1,4 +1,5 @@
-import { useEffect, useState, useRef } from "react";
+// ScreenPage.tsx
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import client from "../client";
 import { Screen } from "../types/collections/screen";
@@ -13,20 +14,22 @@ import {
   ArrowUp,
   ArrowDown,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import allertSound from "../assets/fire-alarm.mp3";
+import { motion } from "framer-motion";
+import { usePersistentAudio } from "../hooks/usePersistentAudio";
+import alertSound from "../assets/fire-alarm.mp3";
 
 const ScreenPage = () => {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const [screen, setScreen] = useState<Screen | null>(null);
   const [loading, setLoading] = useState(true);
   const [isMuted, setIsMuted] = useState(false);
   const [isAutoplayBlocked, setIsAutoplayBlocked] = useState(true);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Use the custom audio hook
+  const audio = usePersistentAudio(alertSound);
 
   // Fetch function to retrieve the latest screen data
   const fetchScreenData = async () => {
-    setLoading(true);
     const { data, error } = await client
       .from("screens")
       .select("*")
@@ -38,33 +41,11 @@ const ScreenPage = () => {
     } else {
       setScreen(data as Screen);
     }
-
     setLoading(false);
   };
 
   useEffect(() => {
     fetchScreenData();
-
-    // Setup the subscription to listen for updates
-    const subscription = client
-      .channel("public:screens")
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "screens",
-          filter: `id=eq.${id}`,
-        },
-        (payload) => {
-          const updatedScreen = payload.new as Screen;
-          setScreen(updatedScreen);
-        }
-      )
-      .subscribe();
-
-    // Polling as a fallback
-    const pollingInterval = setInterval(fetchScreenData, 10000); // Poll every 10 seconds
 
     // Refetch data when the page becomes visible again
     const handleVisibilityChange = () => {
@@ -75,38 +56,36 @@ const ScreenPage = () => {
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      subscription.unsubscribe();
-      clearInterval(pollingInterval);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [id]);
 
+  // Manage audio playback based on state
   useEffect(() => {
     if (screen?.fire_alert && !isMuted && !isAutoplayBlocked) {
-      audioRef.current
-        ?.play()
-        .then(() => console.log("Playing audio"))
-        .catch((error) => {
-          console.log("Autoplay blocked:", error);
-        });
+      audio?.play().catch((error) => {
+        console.error("Error playing audio:", error);
+      });
     } else {
-      audioRef.current?.pause();
+      audio?.pause();
+      audio.currentTime = 0;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [screen?.fire_alert, isMuted, isAutoplayBlocked]);
 
   const handleUserInteraction = () => {
     setIsAutoplayBlocked(false);
     if (screen?.fire_alert && !isMuted) {
-      audioRef.current?.play();
+      audio?.play();
     }
   };
 
   const toggleMute = () => {
-    setIsMuted(!isMuted);
-    if (!isMuted) {
-      audioRef.current?.pause();
-    } else if (screen?.fire_alert) {
-      audioRef.current?.play();
+    setIsMuted((prev) => !prev);
+    if (!isMuted && screen?.fire_alert && !isAutoplayBlocked) {
+      audio?.play();
+    } else {
+      audio?.pause();
     }
   };
 
@@ -148,7 +127,10 @@ const ScreenPage = () => {
   return (
     <>
       {isAutoplayBlocked && (
-        <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50">
+        <div
+          className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50"
+          onClick={handleUserInteraction}
+        >
           <div className="bg-white p-8 rounded-lg text-center shadow-lg">
             <p className="text-xl font-semibold mb-4">Click to allow sound</p>
             <Button onClick={handleUserInteraction}>Allow Sound</Button>
@@ -156,115 +138,110 @@ const ScreenPage = () => {
         </div>
       )}
 
-      <AnimatePresence>
-        <motion.div
-          key={screen.fire_alert ? "alert" : "normal"}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.5 }}
-          className={`min-h-screen flex items-center justify-center p-8 ${
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className={`min-h-screen flex items-center justify-center p-8 ${
+          screen.fire_alert
+            ? "bg-red-100 animate-pulse"
+            : "bg-gradient-to-br from-blue-100 to-green-100"
+        }`}
+      >
+        <Card
+          className={`w-full max-w-2xl ${
             screen.fire_alert
-              ? "bg-red-100 animate-pulse"
-              : "bg-gradient-to-br from-blue-100 to-green-100"
-          }`}
+              ? "bg-red-50 border-red-500 shadow-red-500/50"
+              : "bg-white border-blue-200"
+          } shadow-2xl rounded-3xl overflow-hidden border-4`}
         >
-          <Card
-            className={`w-full max-w-2xl ${
+          <CardHeader
+            className={`${
               screen.fire_alert
-                ? "bg-red-50 border-red-500 shadow-red-500/50"
-                : "bg-white border-blue-200"
-            } shadow-2xl rounded-3xl overflow-hidden border-4`}
+                ? "bg-gradient-to-r from-red-500 to-orange-500"
+                : "bg-gradient-to-r from-blue-500 to-green-500"
+            } p-6`}
           >
-            <CardHeader
-              className={`${
-                screen.fire_alert
-                  ? "bg-gradient-to-r from-red-500 to-orange-500"
-                  : "bg-gradient-to-r from-blue-500 to-green-500"
-              } p-6`}
-            >
-              <CardTitle className="text-4xl font-bold text-white text-center flex items-center justify-center">
-                {screen.fire_alert && (
+            <CardTitle className="text-4xl font-bold text-white text-center flex items-center justify-center">
+              {screen.fire_alert && (
+                <motion.div
+                  animate={{ scale: [1, 1.2, 1] }}
+                  transition={{ duration: 0.5, repeat: Infinity }}
+                  className="mr-4"
+                >
+                  <AlertTriangle className="h-10 w-10" />
+                </motion.div>
+              )}
+              {screen.name}
+            </CardTitle>
+          </CardHeader>
+          <CardContent
+            className={`p-8 ${
+              screen.fire_alert ? "text-red-800" : "text-blue-800"
+            }`}
+          >
+            <div className="flex flex-col items-center space-y-8">
+              {screen.fire_alert ? (
+                <>
                   <motion.div
-                    animate={{ scale: [1, 1.2, 1] }}
-                    transition={{ duration: 0.5, repeat: Infinity }}
-                    className="mr-4"
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.5 }}
+                    className={`flex items-center justify-center w-32 h-32 rounded-full ${
+                      screen.fire_alert ? "bg-red-200" : "bg-blue-200"
+                    }`}
                   >
-                    <AlertTriangle className="h-10 w-10" />
+                    {getDirectionIcon(screen.direction)}
                   </motion.div>
-                )}
-                {screen.name}
-              </CardTitle>
-            </CardHeader>
-            <CardContent
-              className={`p-8 ${
-                screen.fire_alert ? "text-red-800" : "text-blue-800"
-              }`}
-            >
-              <div className="flex flex-col items-center space-y-8">
-                {screen.fire_alert ? (
-                  <>
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.5 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.5 }}
-                      className={`flex items-center justify-center w-32 h-32 rounded-full ${
-                        screen.fire_alert ? "bg-red-200" : "bg-blue-200"
+                  <p className="text-2xl font-semibold capitalize">
+                    Direction: {screen.direction}
+                  </p>
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5 }}
+                    className="text-center"
+                  >
+                    <h2 className="text-3xl font-bold mb-4">Message</h2>
+                    <p
+                      className={`${
+                        screen.fire_alert ? "text-4xl" : "text-xl"
                       }`}
                     >
-                      {getDirectionIcon(screen.direction)}
-                    </motion.div>
-                    <p className="text-2xl font-semibold capitalize">
-                      Direction: {screen.direction}
+                      {screen.message}
                     </p>
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.5 }}
-                      className="text-center"
-                    >
-                      <h2 className="text-3xl font-bold mb-4">Message</h2>
-                      <p
-                        className={`${
-                          screen.fire_alert ? "text-4xl" : "text-xl"
-                        }`}
-                      >
-                        {screen.message}
-                      </p>
-                    </motion.div>
-                    <motion.div
-                      animate={{ scale: [1, 1.1, 1] }}
-                      transition={{ duration: 0.5, repeat: Infinity }}
-                      className="text-3xl font-bold text-red-600 mt-8"
-                    >
-                      FIRE ALERT ACTIVE
-                    </motion.div>
-                  </>
+                  </motion.div>
+                  <motion.div
+                    animate={{ scale: [1, 1.1, 1] }}
+                    transition={{ duration: 0.5, repeat: Infinity }}
+                    className="text-3xl font-bold text-red-600 mt-8"
+                  >
+                    FIRE ALERT ACTIVE
+                  </motion.div>
+                </>
+              ) : (
+                <p className="text-4xl font-bold">مرحبا بكم</p>
+              )}
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={toggleMute}
+                className={`mt-4 ${
+                  screen.fire_alert
+                    ? "border-red-500 text-red-500"
+                    : "border-blue-500 text-blue-500"
+                }`}
+              >
+                {isMuted ? (
+                  <VolumeX className="h-6 w-6" />
                 ) : (
-                  <p className="text-4xl font-bold">مرحبا بكم</p>
+                  <Volume2 className="h-6 w-6" />
                 )}
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={toggleMute}
-                  className={`mt-4 ${
-                    screen.fire_alert
-                      ? "border-red-500 text-red-500"
-                      : "border-blue-500 text-blue-500"
-                  }`}
-                >
-                  {isMuted ? (
-                    <VolumeX className="h-6 w-6" />
-                  ) : (
-                    <Volume2 className="h-6 w-6" />
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-          <audio ref={audioRef} src={allertSound} loop />
-        </motion.div>
-      </AnimatePresence>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
     </>
   );
 };
