@@ -1,5 +1,5 @@
 // ScreenPage.tsx
-import { useEffect, useState } from "react";
+import  { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import client from "../client";
 import { Screen } from "../types/collections/screen";
@@ -28,6 +28,9 @@ const ScreenPage = () => {
   // Use the custom audio hook
   const audio = usePersistentAudio(alertSound);
 
+  // Store the previous screen data to compare changes
+  const prevScreenRef = useRef<Screen | null>(null);
+
   // Fetch function to retrieve the latest screen data
   const fetchScreenData = async () => {
     const { data, error } = await client
@@ -40,6 +43,7 @@ const ScreenPage = () => {
       console.error("Error fetching screen:", error);
     } else {
       setScreen(data as Screen);
+      prevScreenRef.current = data as Screen;
     }
     setLoading(false);
   };
@@ -47,16 +51,35 @@ const ScreenPage = () => {
   useEffect(() => {
     fetchScreenData();
 
-    // Refetch data when the page becomes visible again
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        fetchScreenData();
-      }
-    };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
+    // Setup the subscription to listen for updates
+    const subscription = client
+      .channel("public:screens")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "screens",
+          filter: `id=eq.${id}`,
+        },
+        (payload) => {
+          const updatedScreen = payload.new as Screen;
 
+          // Compare previous and new screen data
+          if (
+            JSON.stringify(prevScreenRef.current) !==
+            JSON.stringify(updatedScreen)
+          ) {
+            setScreen(updatedScreen);
+            prevScreenRef.current = updatedScreen;
+          }
+        }
+      )
+      .subscribe();
+
+    // Clean up subscription on unmount
     return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      subscription.unsubscribe();
     };
   }, [id]);
 
